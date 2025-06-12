@@ -42,11 +42,46 @@ configure_file(
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
+# program names
+set(AVRCPP   avr-g++)
+set(AVRC     avr-gcc)
+set(AVRSTRIP avr-strip)
+set(OBJCOPY  avr-objcopy)
+set(OBJDUMP  avr-objdump)
+set(AVRSIZE  avr-size)
+set(AVRDUDE  avrdude)
+set(MCU   atmega2560)
+set(F_CPU 16000000)
+set(BAUD  9600)
+
+# Sets the compiler
+# Needs to come before the project function
+set(CMAKE_SYSTEM_NAME  Generic)
+set(CMAKE_CXX_COMPILER ${AVRCPP})
+set(CMAKE_C_COMPILER   ${AVRC})
+set(CMAKE_ASM_COMPILER   ${AVRC})
+
+set(CSTANDARD "-std=gnu99")
+set(CDEBUG    "-gstabs -g -ggdb")
+set(CWARN     "-Wall -Wstrict-prototypes -Wl,--gc-sections -Wl,--relax")
+set(CTUNING   "-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -ffunction-sections -fdata-sections")
+set(COPT      "-Os -lm -lprintf_flt")
+set(CMCU      "-mmcu=${MCU}")
+set(CDEFS     "-DF_CPU=${F_CPU} -DBAUD=${BAUD}")
+
+set(CFLAGS   "${CMCU} ${CDEBUG} ${CDEFS} ${COPT} ${CWARN} ${CSTANDARD} ${CTUNING}")
+set(CXXFLAGS "${CMCU} ${CDEBUG} ${CDEFS} ${COPT} ${CTUNING}")
+
+set(CMAKE_C_FLAGS   "${CFLAGS}")
+set(CMAKE_CXX_FLAGS "${CXXFLAGS}")
+set(CMAKE_ASM_FLAGS   "${CFLAGS}")
+
 option(BUILD_SHARED_LIBS "Build shared libraries if ON, otherwise build static libraries" ON)
 option(WITH_ZEPHYR "Build for Zephyr RTOS" OFF)
 option(WITH_FREERTOS_PLUS_TCP "Build for FreeRTOS RTOS and FreeRTOS-Plus-TCP network stack" OFF)
 option(WITH_FREERTOS_LWIP "Build for FreeRTOS RTOS and LWIP (Lightweight IP) network stack" OFF)
 option(WITH_RPI_PICO "Build for Raspberry Pi Pico" OFF)
+option(WITH_FREERTOS_ATMEGA "Build for FreeRTOS on ATmega 2560" ON)
 set(ZENOH_LOG "" CACHE STRING "Use this to set the ZENOH_LOG variable")
 set(ZENOH_LOG_PRINT "" CACHE STRING "Use this to set the ZENOH_LOG_PRINT variable")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
@@ -190,6 +225,10 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Generic")
     pico_add_compile_definition(ZENOH_FREERTOS_PLUS_TCP)
   elseif(WITH_FREERTOS_LWIP)
     pico_add_compile_definition(ZENOH_FREERTOS_LWIP)
+  elseif(WITH_FREERTOS_ATMEGA)
+    pico_add_compile_definition(ZENOH_FREERTOS_ATMEGA)
+    set(FREERTOS_PATH "../FreeRTOS/FreeRTOS/Source")
+    set(FREERTOS_PORT_PATH "../FreeRTOS/FreeRTOS/Source/portable/ThirdParty/GCC/ATmega")
   endif()
 elseif(CMAKE_SYSTEM_NAME MATCHES "PICO") # Raspberry Pi Pico Series
   pico_add_compile_definition(ZENOH_RPI_PICO)
@@ -248,7 +287,7 @@ set(Z_FEATURE_LIVELINESS 1 CACHE STRING "Toggle liveliness feature")
 set(Z_FEATURE_INTEREST 1 CACHE STRING "Toggle interests")
 set(Z_FEATURE_FRAGMENTATION 1 CACHE STRING "Toggle fragmentation")
 set(Z_FEATURE_ENCODING_VALUES 1 CACHE STRING "Toggle encoding values")
-set(Z_FEATURE_MULTI_THREAD 1 CACHE STRING "Toggle multithread")
+set(Z_FEATURE_MULTI_THREAD 0 CACHE STRING "Toggle multithread")
 
 set(Z_FEATURE_LINK_TCP 1 CACHE STRING "Toggle TCP links")
 set(Z_FEATURE_LINK_BLUETOOTH 0 CACHE STRING "Toggle Bluetooth links")
@@ -330,6 +369,7 @@ message(STATUS "Build for Zephyr RTOS: ${WITH_ZEPHYR}")
 message(STATUS "Build for FreeRTOS-Plus-TCP: ${WITH_FREERTOS_PLUS_TCP}")
 message(STATUS "Build for FreeRTOS + LWIP: ${WITH_FREERTOS_LWIP}")
 message(STATUS "Build for Raspberry Pi Pico: ${WITH_RPI_PICO}")
+message(STATUS "Build for FreeRTOS on ATmega 2560: ${WITH_FREERTOS_ATMEGA}")
 message(STATUS "Configuring for ${CMAKE_SYSTEM_NAME}")
 
 if(SKBUILD)
@@ -396,6 +436,20 @@ elseif(WITH_FREERTOS_LWIP)
   file (GLOB Sources_Freertos_Plus_LWIP "src/system/freertos/lwip/*.c")
   list(APPEND Sources_Freertos_Plus_LWIP "src/system/freertos/system.c")
   list(APPEND Sources ${Sources_Freertos_Plus_LWIP})
+elseif(WITH_FREERTOS_ATMEGA)
+  include_directories(
+    "../include"
+    "${FREERTOS_PATH}/include"
+    "${FREERTOS_PORT_PATH}"
+  )
+  file (GLOB Sources_Freertos_Atmega 
+    "src/system/atmega2560-freertos/*.c"
+    "${FREERTOS_PATH}/*.c"
+    "${FREERTOS_PORT_PATH}/*.c"
+    "${FREERTOS_PATH}/portable/MemMang/heap_4.c" # For dynamic memory allocation
+  )
+  list(APPEND Sources_Freertos_Atmega "src/system/atmega2560-freertos/system.c")
+  list(APPEND Sources ${Sources_Freertos_Atmega})
 elseif(WITH_RPI_PICO)
   file (GLOB Sources_RPI_Pico "src/system/rpi_pico/*.c")
   list(APPEND Sources ${Sources_RPI_Pico})
