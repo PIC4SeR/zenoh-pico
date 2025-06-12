@@ -42,40 +42,6 @@ configure_file(
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
-# program names
-set(AVRCPP   avr-g++)
-set(AVRC     avr-gcc)
-set(AVRSTRIP avr-strip)
-set(OBJCOPY  avr-objcopy)
-set(OBJDUMP  avr-objdump)
-set(AVRSIZE  avr-size)
-set(AVRDUDE  avrdude)
-set(MCU   atmega2560)
-set(F_CPU 16000000)
-set(BAUD  9600)
-
-# Sets the compiler
-# Needs to come before the project function
-set(CMAKE_SYSTEM_NAME  Generic)
-set(CMAKE_CXX_COMPILER ${AVRCPP})
-set(CMAKE_C_COMPILER   ${AVRC})
-set(CMAKE_ASM_COMPILER   ${AVRC})
-
-set(CSTANDARD "-std=gnu99")
-set(CDEBUG    "-gstabs -g -ggdb")
-set(CWARN     "-Wall -Wstrict-prototypes -Wl,--gc-sections -Wl,--relax")
-set(CTUNING   "-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -ffunction-sections -fdata-sections")
-set(COPT      "-Os -lm -lprintf_flt")
-set(CMCU      "-mmcu=${MCU}")
-set(CDEFS     "-DF_CPU=${F_CPU} -DBAUD=${BAUD}")
-
-set(CFLAGS   "${CMCU} ${CDEBUG} ${CDEFS} ${COPT} ${CWARN} ${CSTANDARD} ${CTUNING}")
-set(CXXFLAGS "${CMCU} ${CDEBUG} ${CDEFS} ${COPT} ${CTUNING}")
-
-set(CMAKE_C_FLAGS   "${CFLAGS}")
-set(CMAKE_CXX_FLAGS "${CXXFLAGS}")
-set(CMAKE_ASM_FLAGS   "${CFLAGS}")
-
 option(BUILD_SHARED_LIBS "Build shared libraries if ON, otherwise build static libraries" ON)
 option(WITH_ZEPHYR "Build for Zephyr RTOS" OFF)
 option(WITH_FREERTOS_PLUS_TCP "Build for FreeRTOS RTOS and FreeRTOS-Plus-TCP network stack" OFF)
@@ -95,8 +61,8 @@ if(CMAKE_SYSTEM_NAME MATCHES "Windows")
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
   endif()
 elseif(CMAKE_SYSTEM_NAME MATCHES "Generic")
-  if(WITH_ZEPHYR)
-    set(PACKAGING OFF) # no packaging support for zephyr
+  if(WITH_ZEPHYR OR WITH_FREERTOS_ATMEGA)
+    set(PACKAGING OFF) # no packaging support for zephyr nor freertos atmega
     set(BUILD_SHARED_LIBS "OFF")
   endif()
 endif()
@@ -108,7 +74,7 @@ if(NOT CMAKE_C_STANDARD)
     message(STATUS "Setting C11 as the C Standard")
   else()
     # C99 pedantic doesn't like unix header anonymous structure
-    set(CMAKE_C_STANDARD 99)
+    set(CMAKE_CCMAKE_SYSTEM_NAME_STANDARD 99)
     message(STATUS "Setting C99 as the C Standard")
   endif()
 endif()
@@ -227,8 +193,7 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Generic")
     pico_add_compile_definition(ZENOH_FREERTOS_LWIP)
   elseif(WITH_FREERTOS_ATMEGA)
     pico_add_compile_definition(ZENOH_FREERTOS_ATMEGA)
-    set(FREERTOS_PATH "../FreeRTOS/FreeRTOS/Source")
-    set(FREERTOS_PORT_PATH "../FreeRTOS/FreeRTOS/Source/portable/ThirdParty/GCC/ATmega")
+    set(CHECK_THREADS "OFF")
   endif()
 elseif(CMAKE_SYSTEM_NAME MATCHES "PICO") # Raspberry Pi Pico Series
   pico_add_compile_definition(ZENOH_RPI_PICO)
@@ -308,7 +273,7 @@ set(Z_FEATURE_BATCH_TX_MUTEX 0 CACHE STRING "Toggle tx mutex lock at a batch lev
 set(Z_FEATURE_BATCH_PEER_MUTEX 0 CACHE STRING "Toggle peer mutex lock at a batch level")
 set(Z_FEATURE_MATCHING 1 CACHE STRING "Toggle matching feature")
 set(Z_FEATURE_RX_CACHE 0 CACHE STRING "Toggle RX_CACHE")
-set(Z_FEATURE_UNICAST_PEER 1 CACHE STRING "Toggle Unicast peer mode")
+set(Z_FEATURE_UNICAST_PEER 0 CACHE STRING "Toggle Unicast peer mode")
 set(Z_FEATURE_AUTO_RECONNECT 1 CACHE STRING "Toggle automatic reconnection")
 set(Z_FEATURE_MULTICAST_DECLARATIONS 0 CACHE STRING "Toggle multicast resource declarations")
 
@@ -437,18 +402,7 @@ elseif(WITH_FREERTOS_LWIP)
   list(APPEND Sources_Freertos_Plus_LWIP "src/system/freertos/system.c")
   list(APPEND Sources ${Sources_Freertos_Plus_LWIP})
 elseif(WITH_FREERTOS_ATMEGA)
-  include_directories(
-    "../include"
-    "${FREERTOS_PATH}/include"
-    "${FREERTOS_PORT_PATH}"
-  )
-  file (GLOB Sources_Freertos_Atmega 
-    "src/system/atmega2560-freertos/*.c"
-    "${FREERTOS_PATH}/*.c"
-    "${FREERTOS_PORT_PATH}/*.c"
-    "${FREERTOS_PATH}/portable/MemMang/heap_4.c" # For dynamic memory allocation
-  )
-  list(APPEND Sources_Freertos_Atmega "src/system/atmega2560-freertos/system.c")
+  file (GLOB Sources_Freertos_Atmega "src/system/atmega2560-freertos/*.c")
   list(APPEND Sources ${Sources_Freertos_Atmega})
 elseif(WITH_RPI_PICO)
   file (GLOB Sources_RPI_Pico "src/system/rpi_pico/*.c")
