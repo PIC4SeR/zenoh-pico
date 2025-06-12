@@ -1,43 +1,97 @@
-#include "zenoh-pico/transport/unicast.h"
 #include "zenoh-pico/system/platform.h"
-#include "zenoh-pico/system/net.h"
-#include <string.h>
-#include <stdint.h>
+#include "zenoh-pico/transport/transport.h"
+#include "zenoh-pico/utils/pointers.h"
+#include "zenoh-pico/utils/result.h"
 
-/* You need to implement or link your W5100 SPI driver here */
-#include "w5100_driver.h"
+// FreeRTOS includes
+#include "FreeRTOS.h"
 
-typedef struct {
-    uint8_t socket; // e.g., socket 0
-} w5100_transport_t;
+// ioLibrary_Driver includes for W5100
+#include "socket.h"
+#include "wizchip_conf.h"
 
-int8_t z_net_open(z_transport_t *zt, const char *locator, void *arg) {
-    static w5100_transport_t transport = { .socket = 0 };
+z_result_t _z_open_tcp(_z_sys_net_socket_t *sock, const _z_sys_net_endpoint_t rep, uint32_t tout) {
+    z_result_t ret = _Z_RES_OK;
 
-    // Extract IP and port from `locator` (e.g., "tcp/192.168.1.100:7447")
-    // For simplicity, hardcode for now
-    uint8_t ip[4] = {192, 168, 1, 100};
-    uint16_t port = 7447;
+    // Initialize the W5100
+    // wizchip_setup();
 
-    if (!w5100_socket_connect(transport.socket, ip, port)) {
-        return -1;
+    if (sock->_socket(sock->_number, Sn_MR_TCP, sock->_port, 0) != sock->_number) {
+        // TODO(giafranchini): error handling
+        ret = _Z_ERR_GENERIC;
     }
 
-    zt->context = (void*)&transport;
-    return 0;
+    if (sock->_connect(sock->_number, rep._ip, rep._port) != SOCK_OK) {
+        // TODO(giafranchini): error handling
+        ret = _Z_ERR_GENERIC;
+    }
+    
+    return ret;
 }
 
-ssize_t z_net_read(z_transport_t *zt, uint8_t *buf, size_t len) {
-    w5100_transport_t *t = (w5100_transport_t*)zt->context;
-    return w5100_socket_recv(t->socket, buf, len);
+z_result_t _z_listen_tcp(_z_sys_net_socket_t *sock, const _z_sys_net_endpoint_t rep) {
+
+    // Initialize the W5100
+    // wizchip_setup();
+
+    z_result_t ret = _Z_RES_OK;
+
+    if (sock->_socket(sock->_number, Sn_MR_TCP, sock->_port, 0) != sock->_number) {
+        // TODO(giafranchini): error handling
+        ret = _Z_ERR_GENERIC;
+    }
+
+    if (sock->_connect(sock->_number, rep._ip, rep._port) != SOCK_OK) {
+        // TODO(giafranchini): error handling
+        ret = _Z_ERR_GENERIC;
+    }
+
+    ret = sock->_listen(sock->_number);
+    if (ret != SOCK_OK) {
+        // TODO(giafranchini): error handling
+        ret = _Z_ERR_GENERIC;
+    }
+
+    return ret;
 }
 
-ssize_t z_net_write(z_transport_t *zt, const uint8_t *buf, size_t len) {
-    w5100_transport_t *t = (w5100_transport_t*)zt->context;
-    return w5100_socket_send(t->socket, buf, len);
+void _z_close_tcp(_z_sys_net_socket_t *sock) {sock->_close(sock->_number);}
+
+size_t _z_read_tcp(const _z_sys_net_socket_t sock, uint8_t *ptr, size_t len) {
+    
+    // Initialize the W5100
+    // wizchip_setup();
+
+    BaseType_t rb = sock._receive(sock._number, ptr, len);
+    if(rb != len) {
+        // TODO(giafranchini): error handling
+        // As in FreeRTOS+TCP SIZE_MAX
+        rb =  SIZE_MAX;
+    }
+
+    return rb;
 }
 
-void z_net_close(z_transport_t *zt) {
-    w5100_transport_t *t = (w5100_transport_t*)zt->context;
-    w5100_socket_close(t->socket);
+size_t _z_send_tcp(const _z_sys_net_socket_t sock, const uint8_t *ptr, size_t len) {sock._send(sock._number, ptr, len);}
+
+size_t _z_read_exact_tcp(const _z_sys_net_socket_t sock, uint8_t *ptr, size_t len) {
+    // Initialize the W5100
+    // wizchip_setup();
+
+    // Copied from FreeRTOS+TCP
+    size_t n = 0;
+    uint8_t *pos = &ptr[0];
+
+    do {
+        size_t rb = _z_read_tcp(sock, pos, len - n);
+        if ((rb == SIZE_MAX) || (rb == 0)) {
+            n = rb;
+            break;
+        }
+
+        n = n + rb;
+        pos = _z_ptr_u8_offset(pos, n);
+    } while (n != len);
+
+    return n;
 }

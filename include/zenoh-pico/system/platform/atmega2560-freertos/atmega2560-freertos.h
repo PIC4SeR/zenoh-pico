@@ -21,20 +21,31 @@
 typedef TickType_t z_clock_t;
 typedef struct timeval z_time_t;
 
-// TODO(giafranchini): these are the 2 wrapper types for tcp/ip driver of W5100
+typedef int8_t (*Socket_t)(uint8_t sn, uint8_t protocol, uint16_t port, uint8_t flag);
+typedef int8_t (*SocketConnect_t)(uint8_t sn, uint8_t * addr, uint16_t port);
+typedef int8_t (*SocketListen_t)(uint8_t sn);
+typedef int8_t (*SocketClose_t)(uint8_t sn);
+typedef int32_t (*SocketReceive_t)(uint8_t sn, uint8_t * buf, uint16_t len);
+typedef int32_t (*SocketSend_t)(uint8_t sn, uint8_t * buf, uint16_t len);
+
 typedef struct {
     union {
-#if Z_FEATURE_LINK_TCP == 1 || Z_FEATURE_LINK_UDP_MULTICAST == 1 || Z_FEATURE_LINK_UDP_UNICAST == 1
         Socket_t _socket;
-#endif
+        SocketConnect_t _connect;
+        SocketListen_t _listen;
+        SocketClose_t _close;
+        SocketReceive_t _receive;
+        SocketSend_t _send;
+
+        uint8_t _number;
+        uint16_t _port;
     };
 } _z_sys_net_socket_t;
 
 typedef struct {
     union {
-#if Z_FEATURE_LINK_TCP == 1 || Z_FEATURE_LINK_UDP_MULTICAST == 1 || Z_FEATURE_LINK_UDP_UNICAST == 1
-        struct freertos_addrinfo *_iptcp;
-#endif
+        uint8_t * _ip;
+        uint16_t _port;
     };
 } _z_sys_net_endpoint_t;
 
