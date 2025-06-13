@@ -15,6 +15,10 @@
 #define ZENOH_PICO_SYSTEM_ATMEGA_2560_FREERTOS_TYPES_H
 
 #include <time.h>
+#include <stdio.h>   // For sscanf
+#include <string.h>  // For strlen
+#include <stdint.h>  // For uint8_t
+#include <stdbool.h> // For bool
 
 #include "FreeRTOS.h"
 
@@ -49,4 +53,4 @@ typedef struct {
     };
 } _z_sys_net_endpoint_t;
 
-#endif
+#endif // ZENOH_PICO_SYSTEM_ATMEGA_2560_FREERTOS_TYPES_H

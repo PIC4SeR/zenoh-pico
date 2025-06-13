@@ -10,6 +10,82 @@
 #include "socket.h"
 #include "wizchip_conf.h"
 
+/**
+ * @brief Converts an IPv4 address string (e.g., "192.168.1.100") to a uint8_t array.
+ *
+ * @param ip_str A pointer to the null-terminated string containing the IPv4 address.
+ * @param ip_array A pointer to a uint8_t array of size 4 where the converted IP will be stored.
+ * @return true if the conversion was successful and the IP address was valid.
+ * @return false if the input string was NULL, ip_array was NULL, or the IP address format was invalid.
+ */
+bool convert_ip_string_to_uint8_array(const char *ip_str, uint8_t *ip_array) {
+    if (ip_str == NULL || ip_array == NULL) {
+        return false;
+    }
+
+    // A valid IPv4 string "XXX.XXX.XXX.XXX" has a minimum length (e.g., "0.0.0.0" is 7 chars)
+    // and a maximum length (e.g., "255.255.255.255" is 15 chars).
+    // Plus the null terminator.
+    size_t len = strlen(ip_str);
+    if (len < 7 || len > 15) {
+        return false;
+    }
+
+    unsigned int octet[4]; // Use unsigned int to read, then cast to uint8_t
+
+    // Use sscanf to parse the string into four unsigned integers
+    // The " %u.%u.%u.%u" format string expects four decimal numbers separated by dots.
+    // The space before %u is important to consume any leading whitespace if present (though typically not for IP).
+    // The %n specifier stores the number of characters successfully parsed so far.
+    // This allows us to check if the entire string was consumed, ensuring no extra characters are present.
+    int chars_parsed;
+    int result = sscanf(ip_str, "%u.%u.%u.%u%n", &octet[0], &octet[1], &octet[2], &octet[3], &chars_parsed);
+
+    if (result != 4) { return false; }
+
+    if (chars_parsed != len) { return false; }
+
+    for (int i = 0; i < 4; i++) {
+        if (octet[i] > 255) {
+            return false;
+        }
+        ip_array[i] = (uint8_t)octet[i];
+    }
+
+    return true;
+}
+
+void _z_socket_close(_z_sys_net_socket_t *sock) {sock->_close(sock->_number);}
+
+/*------------------ TCP sockets ------------------*/
+z_result_t _z_create_endpoint_tcp(_z_sys_net_endpoint_t *ep, const char *s_address, const char *s_port) {
+    z_result_t ret = _Z_RES_OK;
+
+    // Parse, check and add IP address
+    if (!convert_ip_string_to_uint8_array(s_address, ep->_ip)) {
+        ret = _Z_ERR_GENERIC;
+        return ret;
+    }
+
+    // Parse, check and add the port
+    uint32_t port = strtoul(s_port, NULL, 10);
+    if ((port > (uint32_t)0) && (port <= (uint32_t)65355)) {  // Port numbers should range from 1 to 65355
+        ep->_port = (uint16_t)port;
+    } else {
+        ret = _Z_ERR_GENERIC;
+    }
+
+    return ret;
+}
+
+void _z_free_endpoint_tcp(_z_sys_net_endpoint_t *ep) { 
+    if (ep->_ip != NULL) {
+        vPortFree(ep->_ip);
+        ep->_ip = NULL;
+    }
+    ep->_port = 0;
+}
+
 z_result_t _z_open_tcp(_z_sys_net_socket_t *sock, const _z_sys_net_endpoint_t rep, uint32_t tout) {
     z_result_t ret = _Z_RES_OK;
 

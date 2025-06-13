@@ -1,4 +1,6 @@
 #include <time.h>
+#include <stdlib.h>
+#include <util/delay.h>
 
 #include "zenoh-pico/config.h"
 #include "zenoh-pico/system/platform.h"
@@ -12,8 +14,7 @@ uint8_t z_random_u8(void) { return z_random_u32(); }
 uint16_t z_random_u16(void) { return z_random_u32(); }
 
 uint32_t z_random_u32(void) {
-    uint32_t ret = 0;
-    xApplicationGetRandomNumber(&ret);
+    uint32_t ret = random();
     return ret;
 }
 
