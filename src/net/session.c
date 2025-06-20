@@ -41,6 +41,8 @@
 #include "zenoh-pico/utils/result.h"
 #include "zenoh-pico/utils/uuid.h"
 
+#include "uart_debug.h"
+
 static z_result_t _z_locators_by_scout(const _z_config_t *config, const _z_id_t *zid, _z_string_svec_t *locators) {
     z_result_t ret = _Z_RES_OK;
 
