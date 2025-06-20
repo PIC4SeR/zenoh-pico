@@ -10,6 +10,8 @@
 #include "socket.h"
 #include "wizchip_conf.h"
 
+#include "uart_debug.h"
+
 /**
  * @brief Converts an IPv4 address string (e.g., "192.168.1.100") to a uint8_t array.
  *
@@ -19,7 +21,7 @@
  * @return false if the input string was NULL, ip_array was NULL, or the IP address format was invalid.
  */
 bool convert_ip_string_to_uint8_array(const char *ip_str, uint8_t *ip_array) {
-    if (ip_str == NULL || ip_array == NULL) {
+    if (ip_str == NULL) {
         return false;
     }
 
@@ -55,7 +57,7 @@ bool convert_ip_string_to_uint8_array(const char *ip_str, uint8_t *ip_array) {
     return true;
 }
 
-void _z_socket_close(_z_sys_net_socket_t *sock) {sock->_close(sock->_number);}
+void _z_socket_close(_z_sys_net_socket_t *sock) {close(sock->_number);}
 
 /*------------------ TCP sockets ------------------*/
 z_result_t _z_create_endpoint_tcp(_z_sys_net_endpoint_t *ep, const char *s_address, const char *s_port) {
@@ -80,80 +82,100 @@ z_result_t _z_create_endpoint_tcp(_z_sys_net_endpoint_t *ep, const char *s_addre
 
 void _z_free_endpoint_tcp(_z_sys_net_endpoint_t *ep) { 
     if (ep->_ip != NULL) {
-        vPortFree(ep->_ip);
+        free(ep->_ip);
         ep->_ip = NULL;
     }
     ep->_port = 0;
 }
 
 z_result_t _z_open_tcp(_z_sys_net_socket_t *sock, const _z_sys_net_endpoint_t rep, uint32_t tout) {
+    uart_print("1");
     z_result_t ret = _Z_RES_OK;
 
-    // Initialize the W5100
-    // wizchip_setup();
+    // Create a new socket
+    sock->_number = 0;
+    sock->_port = 5000;
 
-    if (sock->_socket(sock->_number, Sn_MR_TCP, sock->_port, 0) != sock->_number) {
-        // TODO(giafranchini): error handling
+    uint8_t dest_ip[4] = {192, 168, 0, 100};  // Example IP address, replace with actual
+    uint16_t dest_port = 7447;  // Example port, replace with actual
+
+    // for (int i = 0; i < 4; i++) {
+    //     uart_printf("eip[%i]: %hhu", i, rep._ip[i]);
+    // }
+
+    // uart_printf("sn: %hhu", sock->_number);
+    // uart_printf("port: %hu", sock->_port);
+
+    if (socket(sock->_number, Sn_MR_TCP, sock->_port, 0) != sock->_number) {
+        uart_print("2");
         ret = _Z_ERR_GENERIC;
     }
 
-    if (sock->_connect(sock->_number, rep._ip, rep._port) != SOCK_OK) {
-        // TODO(giafranchini): error handling
+    if (connect(0, dest_ip, dest_port) != SOCK_OK) {
+        uart_print("3");
         ret = _Z_ERR_GENERIC;
     }
+
+    uart_print("4");
     
     return ret;
 }
 
 z_result_t _z_listen_tcp(_z_sys_net_socket_t *sock, const _z_sys_net_endpoint_t rep) {
-
-    // Initialize the W5100
-    // wizchip_setup();
-
     z_result_t ret = _Z_RES_OK;
 
-    if (sock->_socket(sock->_number, Sn_MR_TCP, sock->_port, 0) != sock->_number) {
-        // TODO(giafranchini): error handling
+    // Create a new socket
+    sock->_number = 0;
+    sock->_port = 5000;
+
+    if (socket(sock->_number, Sn_MR_TCP, sock->_port, 0) != sock->_number) {
         ret = _Z_ERR_GENERIC;
     }
 
-    if (sock->_connect(sock->_number, rep._ip, rep._port) != SOCK_OK) {
-        // TODO(giafranchini): error handling
+    if (connect(sock->_number, rep._ip, rep._port) != SOCK_OK) {
         ret = _Z_ERR_GENERIC;
     }
 
-    ret = sock->_listen(sock->_number);
+    ret = listen(sock->_number);
     if (ret != SOCK_OK) {
-        // TODO(giafranchini): error handling
         ret = _Z_ERR_GENERIC;
     }
 
     return ret;
 }
 
-void _z_close_tcp(_z_sys_net_socket_t *sock) {sock->_close(sock->_number);}
+void _z_close_tcp(_z_sys_net_socket_t *sock) {close(sock->_number);}
 
 size_t _z_read_tcp(const _z_sys_net_socket_t sock, uint8_t *ptr, size_t len) {
     
-    // Initialize the W5100
-    // wizchip_setup();
-
-    BaseType_t rb = sock._receive(sock._number, ptr, len);
+    int32_t rb = recv(0, ptr, len);
     if(rb != len) {
-        // TODO(giafranchini): error handling
         // As in FreeRTOS+TCP SIZE_MAX
         rb =  SIZE_MAX;
+    }
+
+    if (rb == len) {
+        // uart_printf("read ok\n");
+    } else if (rb == SIZE_MAX) {
+        // uart_printf("read failed\n");
+    } else {
+        // uart_printf("read partial: %d bytes\n", rb);
     }
 
     return rb;
 }
 
-size_t _z_send_tcp(const _z_sys_net_socket_t sock, const uint8_t *ptr, size_t len) {sock._send(sock._number, ptr, len);}
+size_t _z_send_tcp(const _z_sys_net_socket_t sock, const uint8_t *ptr, size_t len) {
+    int32_t ret = send(0, ptr, len);
+    if (ret != len) {
+        uart_printf("send failed\n");
+        return SIZE_MAX;
+    }
+    uart_printf("senT\n");
+    return ret;
+}
 
 size_t _z_read_exact_tcp(const _z_sys_net_socket_t sock, uint8_t *ptr, size_t len) {
-    // Initialize the W5100
-    // wizchip_setup();
-
     // Copied from FreeRTOS+TCP
     size_t n = 0;
     uint8_t *pos = &ptr[0];
@@ -169,5 +191,10 @@ size_t _z_read_exact_tcp(const _z_sys_net_socket_t sock, uint8_t *ptr, size_t le
         pos = _z_ptr_u8_offset(pos, n);
     } while (n != len);
 
+    if (n == len) {
+        // uart_printf("read exact ok\n");
+    } else {
+        // uart_printf("read exact failed\n");
+    }
     return n;
 }

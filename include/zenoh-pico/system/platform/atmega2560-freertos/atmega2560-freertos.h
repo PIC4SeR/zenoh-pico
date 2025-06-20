@@ -14,7 +14,6 @@
 #ifndef ZENOH_PICO_SYSTEM_ATMEGA_2560_FREERTOS_TYPES_H
 #define ZENOH_PICO_SYSTEM_ATMEGA_2560_FREERTOS_TYPES_H
 
-#include <time.h>
 #include <stdio.h>   // For sscanf
 #include <string.h>  // For strlen
 #include <stdint.h>  // For uint8_t
@@ -23,7 +22,10 @@
 #include "FreeRTOS.h"
 
 typedef TickType_t z_clock_t;
-typedef struct timeval z_time_t;
+typedef struct {
+    uint32_t sec;  // Seconds since epoch
+    uint32_t usec; // microseconds part
+} z_time_t;
 
 typedef int8_t (*Socket_t)(uint8_t sn, uint8_t protocol, uint16_t port, uint8_t flag);
 typedef int8_t (*SocketConnect_t)(uint8_t sn, uint8_t * addr, uint16_t port);
@@ -33,24 +35,13 @@ typedef int32_t (*SocketReceive_t)(uint8_t sn, uint8_t * buf, uint16_t len);
 typedef int32_t (*SocketSend_t)(uint8_t sn, uint8_t * buf, uint16_t len);
 
 typedef struct {
-    union {
-        Socket_t _socket;
-        SocketConnect_t _connect;
-        SocketListen_t _listen;
-        SocketClose_t _close;
-        SocketReceive_t _receive;
-        SocketSend_t _send;
-
-        uint8_t _number;
-        uint16_t _port;
-    };
+    uint8_t _number;
+    uint16_t _port;
 } _z_sys_net_socket_t;
 
 typedef struct {
-    union {
-        uint8_t * _ip;
-        uint16_t _port;
-    };
+    uint8_t * _ip;
+    uint16_t _port;
 } _z_sys_net_endpoint_t;
 
 #endif // ZENOH_PICO_SYSTEM_ATMEGA_2560_FREERTOS_TYPES_H
