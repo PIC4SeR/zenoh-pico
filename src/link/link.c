@@ -21,7 +21,7 @@
 #include "zenoh-pico/link/manager.h"
 #include "zenoh-pico/utils/logging.h"
 
-#include "uart_debug.h"
+#include "freertos_atmega2560/uart_debug.h"
 
 z_result_t _z_open_socket(const _z_string_t *locator, _z_sys_net_socket_t *socket) {
     _z_endpoint_t ep;

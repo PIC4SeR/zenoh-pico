@@ -23,7 +23,7 @@
 #include "zenoh-pico/transport/unicast/accept.h"
 #include "zenoh-pico/transport/unicast/transport.h"
 
-#include "uart_debug.h"
+#include "freertos_atmega2560/uart_debug.h"
 
 static z_result_t _z_new_transport_client(_z_transport_t *zt, const _z_string_t *locator, const _z_id_t *local_zid) {
     z_result_t ret = _Z_RES_OK;

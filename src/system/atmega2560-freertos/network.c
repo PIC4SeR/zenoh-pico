@@ -10,7 +10,7 @@
 #include "socket.h"
 #include "wizchip_conf.h"
 
-#include "uart_debug.h"
+#include "freertos_atmega2560/uart_debug.h"
 
 /**
  * @brief Converts an IPv4 address string (e.g., "192.168.1.100") to a uint8_t array.

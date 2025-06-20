@@ -51,7 +51,7 @@
 #include "zenoh-pico/utils/result.h"
 #include "zenoh-pico/utils/uuid.h"
 
-#include "uart_debug.h"
+#include "freertos_atmega2560/uart_debug.h"
 
 /********* Data Types Handlers *********/
 
