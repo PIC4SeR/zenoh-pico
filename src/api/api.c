@@ -51,8 +51,6 @@
 #include "zenoh-pico/utils/result.h"
 #include "zenoh-pico/utils/uuid.h"
 
-#include "freertos_atmega2560/uart_debug.h"
-
 /********* Data Types Handlers *********/
 
 z_result_t z_view_string_from_str(z_view_string_t *str, const char *value) {

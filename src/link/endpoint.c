@@ -38,8 +38,6 @@
 #endif
 #include "zenoh-pico/link/config/raweth.h"
 
-#include "freertos_atmega2560/uart_debug.h"
-
 /*------------------ Locator ------------------*/
 void _z_locator_init(_z_locator_t *locator) {
     locator->_protocol = _z_string_null();
