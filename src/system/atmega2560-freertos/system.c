@@ -5,8 +5,7 @@
 #include "zenoh-pico/config.h"
 #include "zenoh-pico/system/platform.h"
 
-#include "FreeRTOS.h"
-#include "task.h"
+#include "freertos_atmega2560/timer.h"
 
 /*------------------ Random ------------------*/
 uint8_t z_random_u8(void) { return z_random_u32(); }
@@ -41,29 +40,29 @@ void z_free(void *ptr) { free(ptr); }
 
 /*------------------ Sleep ------------------*/
 z_result_t z_sleep_us(size_t time) {
-    vTaskDelay(pdMS_TO_TICKS(time * 0.001));
+    z_sleep_ms(time * 0.001);
     return _Z_RES_OK;
 }
 
 z_result_t z_sleep_ms(size_t time) {
-    vTaskDelay(pdMS_TO_TICKS(time));
+    blocking_sleep_ms(time);
     return _Z_RES_OK;
 }
 
 z_result_t z_sleep_s(size_t time) {
-    vTaskDelay(pdMS_TO_TICKS(time * 1000));
+    z_sleep_ms(time * 1000);
     return _Z_RES_OK;
 }
 
 /*------------------ Clock ------------------*/
-z_clock_t z_clock_now(void) { return xTaskGetTickCount(); }
+z_clock_t z_clock_now(void) { return get_millis(); }
 
 unsigned long z_clock_elapsed_us(z_clock_t *instant) { return z_clock_elapsed_ms(instant) * 1000; }
 
 unsigned long z_clock_elapsed_ms(z_clock_t *instant) {
     z_clock_t now = z_clock_now();
 
-    unsigned long elapsed = (now - *instant) * portTICK_PERIOD_MS;
+    unsigned long elapsed = now - *instant;
     return elapsed;
 }
 
@@ -72,15 +71,14 @@ unsigned long z_clock_elapsed_s(z_clock_t *instant) { return z_clock_elapsed_ms(
 void z_clock_advance_us(z_clock_t *clock, unsigned long duration) { z_clock_advance_ms(clock, duration / 1000); }
 
 void z_clock_advance_ms(z_clock_t *clock, unsigned long duration) {
-    unsigned long ticks = pdMS_TO_TICKS(duration);
-    *clock += ticks;
+    *clock += duration;
 }
 
 void z_clock_advance_s(z_clock_t *clock, unsigned long duration) { z_clock_advance_ms(clock, duration * 1000); }
 
 /*------------------ Time ------------------*/
 z_time_t z_time_now(void) {
-    TickType_t t = pdTICKS_TO_MS(xTaskGetTickCount());
+    z_clock_t t = z_clock_now();
     z_time_t now;
     now.sec = t / 1000; // Convert milliseconds to seconds
     now.usec = (t % 1000) * 1000; // Convert remaining milliseconds to microseconds

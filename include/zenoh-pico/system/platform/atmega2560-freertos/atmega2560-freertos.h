@@ -19,9 +19,7 @@
 #include <stdint.h>  // For uint8_t
 #include <stdbool.h> // For bool
 
-#include "FreeRTOS.h"
-
-typedef TickType_t z_clock_t;
+typedef uint32_t z_clock_t;
 typedef struct {
     uint32_t sec;  // Seconds since epoch
     uint32_t usec; // microseconds part
