@@ -3,9 +3,6 @@
 #include "zenoh-pico/utils/pointers.h"
 #include "zenoh-pico/utils/result.h"
 
-// FreeRTOS includes
-#include "FreeRTOS.h"
-
 // ioLibrary_Driver includes for W5100
 #include "socket.h"
 #include "wizchip_conf.h"

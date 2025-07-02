@@ -11,8 +11,8 @@
 // Contributors:
 //   Błażej Sowa, <blazej@fictionlab.pl>
 
-#ifndef ZENOH_PICO_SYSTEM_ATMEGA_2560_FREERTOS_TYPES_H
-#define ZENOH_PICO_SYSTEM_ATMEGA_2560_FREERTOS_TYPES_H
+#ifndef ZENOH_PICO_SYSTEM_ATMEGA_2560_TYPES_H
+#define ZENOH_PICO_SYSTEM_ATMEGA_2560_TYPES_H
 
 #include <stdio.h>   // For sscanf
 #include <string.h>  // For strlen
@@ -42,4 +42,4 @@ typedef struct {
     uint16_t _port;
 } _z_sys_net_endpoint_t;
 
-#endif // ZENOH_PICO_SYSTEM_ATMEGA_2560_FREERTOS_TYPES_H
+#endif // ZENOH_PICO_SYSTEM_ATMEGA_2560_TYPES_H
