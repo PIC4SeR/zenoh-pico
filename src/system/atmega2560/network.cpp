@@ -1,11 +1,13 @@
+#include <Arduino.h>
+#include <Ethernet.h>
+
+extern "C" {
+#include <Arduino_FreeRTOS.h>
+
 #include "zenoh-pico/system/platform.h"
 #include "zenoh-pico/transport/transport.h"
 #include "zenoh-pico/utils/pointers.h"
 #include "zenoh-pico/utils/result.h"
-
-// ioLibrary_Driver includes for W5100
-#include "socket.h"
-#include "wizchip_conf.h"
 
 /**
  * @brief Converts an IPv4 address string (e.g., "192.168.1.100") to a uint8_t array.
@@ -52,7 +54,12 @@ bool convert_ip_string_to_uint8_array(const char *ip_str, uint8_t *ip_array) {
     return true;
 }
 
-void _z_socket_close(_z_sys_net_socket_t *sock) {close(sock->_number);}
+z_result_t _z_socket_set_non_blocking(const _z_sys_net_socket_t *sock) {
+    // There should not be anything blocking in the EthernetClient API
+    return _Z_RES_OK;
+}
+
+void _z_socket_close(_z_sys_net_socket_t *sock) {sock->_client->stop();}
 
 /*------------------ TCP sockets ------------------*/
 z_result_t _z_create_endpoint_tcp(_z_sys_net_endpoint_t *ep, const char *s_address, const char *s_port) {
@@ -75,29 +82,21 @@ z_result_t _z_create_endpoint_tcp(_z_sys_net_endpoint_t *ep, const char *s_addre
     return ret;
 }
 
-void _z_free_endpoint_tcp(_z_sys_net_endpoint_t *ep) { 
+void _z_free_endpoint_tcp(_z_sys_net_endpoint_t *ep) {
     if (ep->_ip != NULL) {
         free(ep->_ip);
         ep->_ip = NULL;
     }
-    ep->_port = 0;
+    ep->_port = -1;
 }
 
 z_result_t _z_open_tcp(_z_sys_net_socket_t *sock, const _z_sys_net_endpoint_t rep, uint32_t tout) {
     z_result_t ret = _Z_RES_OK;
 
-    // Create a new socket
-    sock->_number = 0;
-    sock->_port = 5000;
+    sock->_client = new EthernetClient();
+    sock->_client->setConnectionTimeout(tout);
 
-    uint8_t dest_ip[4] = {192, 168, 0, 100};  // Example IP address, replace with actual
-    uint16_t dest_port = 7447;  // Example port, replace with actual
-
-    if (socket(sock->_number, Sn_MR_TCP, sock->_port, 0) != sock->_number) {
-        ret = _Z_ERR_GENERIC;
-    }
-
-    if (connect(0, dest_ip, dest_port) != SOCK_OK) {
+    if (!sock->_client->connect(rep._ip, rep._port)) {
         ret = _Z_ERR_GENERIC;
     }
     
@@ -107,31 +106,26 @@ z_result_t _z_open_tcp(_z_sys_net_socket_t *sock, const _z_sys_net_endpoint_t re
 z_result_t _z_listen_tcp(_z_sys_net_socket_t *sock, const _z_sys_net_endpoint_t rep) {
     z_result_t ret = _Z_RES_OK;
 
-    // Create a new socket
-    sock->_number = 0;
-    sock->_port = 5000;
+    sock->_client = new EthernetClient();
 
-    if (socket(sock->_number, Sn_MR_TCP, sock->_port, 0) != sock->_number) {
+    if (!sock->_client->connect(rep._ip, rep._port)) {
         ret = _Z_ERR_GENERIC;
     }
 
-    if (connect(sock->_number, rep._ip, rep._port) != SOCK_OK) {
-        ret = _Z_ERR_GENERIC;
-    }
-
-    ret = listen(sock->_number);
-    if (ret != SOCK_OK) {
-        ret = _Z_ERR_GENERIC;
-    }
+    // TODO(giafranchini): listen is not implemented for EthernetClient
+    // ret = listen(sock->_number);
+    // if (ret != SOCK_OK) {
+    //     ret = _Z_ERR_GENERIC;
+    // }
 
     return ret;
 }
 
-void _z_close_tcp(_z_sys_net_socket_t *sock) {close(sock->_number);}
+void _z_close_tcp(_z_sys_net_socket_t *sock) {sock->_client->stop();}
 
 size_t _z_read_tcp(const _z_sys_net_socket_t sock, uint8_t *ptr, size_t len) {
     
-    int32_t rb = recv(0, ptr, len);
+    int32_t rb = sock._client->read(ptr, len);
     if(rb != len) {
         // As in FreeRTOS+TCP SIZE_MAX
         rb =  SIZE_MAX;
@@ -141,7 +135,7 @@ size_t _z_read_tcp(const _z_sys_net_socket_t sock, uint8_t *ptr, size_t len) {
 }
 
 size_t _z_send_tcp(const _z_sys_net_socket_t sock, const uint8_t *ptr, size_t len) {
-    int32_t ret = send(0, ptr, len);
+    int32_t ret = sock._client->write(ptr, len);
     if (ret != len) {
         return SIZE_MAX;
     }
@@ -166,3 +160,5 @@ size_t _z_read_exact_tcp(const _z_sys_net_socket_t sock, uint8_t *ptr, size_t le
 
     return n;
 }
+
+}  // extern "C"

@@ -14,10 +14,12 @@
 #ifndef ZENOH_PICO_SYSTEM_ATMEGA_2560_TYPES_H
 #define ZENOH_PICO_SYSTEM_ATMEGA_2560_TYPES_H
 
-#include <stdio.h>   // For sscanf
-#include <string.h>  // For strlen
 #include <stdint.h>  // For uint8_t
-#include <stdbool.h> // For bool
+#include <Arduino_FreeRTOS.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef uint32_t z_clock_t;
 typedef struct {
@@ -25,21 +27,19 @@ typedef struct {
     uint32_t usec; // microseconds part
 } z_time_t;
 
-typedef int8_t (*Socket_t)(uint8_t sn, uint8_t protocol, uint16_t port, uint8_t flag);
-typedef int8_t (*SocketConnect_t)(uint8_t sn, uint8_t * addr, uint16_t port);
-typedef int8_t (*SocketListen_t)(uint8_t sn);
-typedef int8_t (*SocketClose_t)(uint8_t sn);
-typedef int32_t (*SocketReceive_t)(uint8_t sn, uint8_t * buf, uint16_t len);
-typedef int32_t (*SocketSend_t)(uint8_t sn, uint8_t * buf, uint16_t len);
+typedef struct EthernetClient EthernetClient;  // Forward declaration to be used in _z_sys_net_socket_t
 
 typedef struct {
-    uint8_t _number;
-    uint16_t _port;
+    EthernetClient * _client;
 } _z_sys_net_socket_t;
 
 typedef struct {
     uint8_t * _ip;
     uint16_t _port;
 } _z_sys_net_endpoint_t;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // ZENOH_PICO_SYSTEM_ATMEGA_2560_TYPES_H
