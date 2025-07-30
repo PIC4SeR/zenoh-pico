@@ -6,7 +6,6 @@
 // ioLibrary_Driver includes for W5100
 #include "socket.h"
 #include "wizchip_conf.h"
-
 /**
  * @brief Converts an IPv4 address string (e.g., "192.168.1.100") to a uint8_t array.
  *
@@ -16,7 +15,7 @@
  * @return false if the input string was NULL, ip_array was NULL, or the IP address format was invalid.
  */
 bool convert_ip_string_to_uint8_array(const char *ip_str, uint8_t *ip_array) {
-    if (ip_str == NULL) {
+    if (ip_str == NULL || ip_array == NULL) {
         return false;
     }
 
@@ -52,14 +51,26 @@ bool convert_ip_string_to_uint8_array(const char *ip_str, uint8_t *ip_array) {
     return true;
 }
 
+z_result_t _z_socket_set_non_blocking(const _z_sys_net_socket_t *sock) {
+    // There should not be anything blocking in the EthernetClient API
+    return _Z_RES_OK;
+}
+
 void _z_socket_close(_z_sys_net_socket_t *sock) {close(sock->_number);}
 
 /*------------------ TCP sockets ------------------*/
 z_result_t _z_create_endpoint_tcp(_z_sys_net_endpoint_t *ep, const char *s_address, const char *s_port) {
     z_result_t ret = _Z_RES_OK;
 
+    ep->_ip = (uint8_t *)malloc(4 * sizeof(uint8_t));
+    if (ep->_ip == NULL) {
+        return _Z_ERR_GENERIC;
+    }
+
     // Parse, check and add IP address
     if (!convert_ip_string_to_uint8_array(s_address, ep->_ip)) {
+        free(ep->_ip);
+        ep->_ip = NULL;
         ret = _Z_ERR_GENERIC;
         return ret;
     }
@@ -80,24 +91,20 @@ void _z_free_endpoint_tcp(_z_sys_net_endpoint_t *ep) {
         free(ep->_ip);
         ep->_ip = NULL;
     }
-    ep->_port = 0;
+    ep->_port = -1;
 }
 
 z_result_t _z_open_tcp(_z_sys_net_socket_t *sock, const _z_sys_net_endpoint_t rep, uint32_t tout) {
     z_result_t ret = _Z_RES_OK;
-
     // Create a new socket
     sock->_number = 0;
     sock->_port = 5000;
-
-    uint8_t dest_ip[4] = {192, 168, 0, 100};  // Example IP address, replace with actual
-    uint16_t dest_port = 7447;  // Example port, replace with actual
 
     if (socket(sock->_number, Sn_MR_TCP, sock->_port, 0) != sock->_number) {
         ret = _Z_ERR_GENERIC;
     }
 
-    if (connect(0, dest_ip, dest_port) != SOCK_OK) {
+    if (connect(0, rep._ip, rep._port) != SOCK_OK) {
         ret = _Z_ERR_GENERIC;
     }
     
