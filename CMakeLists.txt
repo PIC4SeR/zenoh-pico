@@ -441,6 +441,10 @@ if(CMAKE_SYSTEM_NAME MATCHES "Windows")
   pico_target_link_library(Iphlpapi)
 endif()
 
+if(WITH_ATMEGA2560)
+  pico_target_link_library(ioLibrary_Driver)
+endif()
+
 #
 # Build tests, examples, installation only when project is root
 #
