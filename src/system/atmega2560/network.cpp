@@ -65,7 +65,15 @@ z_result_t _z_socket_set_non_blocking(const _z_sys_net_socket_t *sock) {
     return _Z_RES_OK;
 }
 
-void _z_socket_close(_z_sys_net_socket_t *sock) {sock->_client->stop();}
+void _z_socket_close(_z_sys_net_socket_t *sock) {
+#if Z_FEATURE_LINK_TCP == 1
+    sock->_client->stop();
+#endif
+#if Z_FEATURE_LINK_SERIAL == 1
+    sock->_serial->end();
+    delete sock->_serial;
+#endif
+}
 
 #if Z_FEATURE_LINK_TCP == 1
 /*------------------ TCP sockets ------------------*/
@@ -192,11 +200,11 @@ z_result_t _z_open_serial_from_pins(_z_sys_net_socket_t *sock, uint32_t txpin, u
 }
 
 z_result_t _z_open_serial_from_dev(_z_sys_net_socket_t *sock, char *dev, uint32_t baudrate) {
-    if (strcmp(dev, "UART_1") == 0) {
+    if (strcmp(dev, "UART1") == 0) {
         sock->_serial = &Serial1; // Use Serial1 for UART_1
-    } else if (strcmp(dev, "UART_2") == 0) {
+    } else if (strcmp(dev, "UART2") == 0) {
         sock->_serial = &Serial2; // Use Serial2 for UART_2
-    } else if (strcmp(dev, "UART_3") == 0) {
+    } else if (strcmp(dev, "UART3") == 0) {
         sock->_serial = &Serial3; // Use Serial3 for UART_3
     } else {
         return _Z_ERR_GENERIC;
