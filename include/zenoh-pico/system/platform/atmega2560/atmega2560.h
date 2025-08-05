@@ -28,14 +28,26 @@ typedef struct {
 } z_time_t;
 
 typedef struct EthernetClient EthernetClient;  // Forward declaration to be used in _z_sys_net_socket_t
+typedef struct HardwareSerial HardwareSerial;    // Forward declaration to be used in _z_sys_net_socket_t
 
 typedef struct {
+    union {
+#if Z_FEATURE_LINK_TCP == 1 
     EthernetClient * _client;
+#endif
+#if Z_FEATURE_LINK_SERIAL == 1
+        HardwareSerial *_serial;  // As pointer to cross the boundary between C and C++
+#endif
+    };
 } _z_sys_net_socket_t;
 
 typedef struct {
+    union {
+#if Z_FEATURE_LINK_TCP == 1
     uint8_t * _ip;
     uint16_t _port;
+#endif    
+    };
 } _z_sys_net_endpoint_t;
 
 #ifdef __cplusplus
