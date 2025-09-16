@@ -254,7 +254,7 @@ set(Z_FEATURE_FRAGMENTATION 1 CACHE STRING "Toggle fragmentation")
 set(Z_FEATURE_ENCODING_VALUES 1 CACHE STRING "Toggle encoding values")
 set(Z_FEATURE_MULTI_THREAD 0 CACHE STRING "Toggle multithread")
 
-set(Z_FEATURE_LINK_TCP 1 CACHE STRING "Toggle TCP links")
+set(Z_FEATURE_LINK_TCP 0 CACHE STRING "Toggle TCP links")
 set(Z_FEATURE_LINK_BLUETOOTH 0 CACHE STRING "Toggle Bluetooth links")
 set(Z_FEATURE_LINK_WS 0 CACHE STRING "Toggle WebSocket links")
 set(Z_FEATURE_LINK_SERIAL 1 CACHE STRING "Toggle Serial links")
