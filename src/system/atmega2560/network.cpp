@@ -1,13 +1,19 @@
 #include <Arduino.h>
 #include <Ethernet.h>
+#include <HardwareSerial.h>
 
 extern "C" {
+
+
 #include <Arduino_FreeRTOS.h>
 
+#include "zenoh-pico/protocol/codec/serial.h"
+#include "zenoh-pico/system/common/serial.h"
+#include "zenoh-pico/system/link/serial.h"
 #include "zenoh-pico/system/platform.h"
 #include "zenoh-pico/transport/transport.h"
+#include "zenoh-pico/utils/logging.h"
 #include "zenoh-pico/utils/pointers.h"
-#include "zenoh-pico/utils/result.h"
 
 /**
  * @brief Converts an IPv4 address string (e.g., "192.168.1.100") to a uint8_t array.
@@ -59,8 +65,17 @@ z_result_t _z_socket_set_non_blocking(const _z_sys_net_socket_t *sock) {
     return _Z_RES_OK;
 }
 
-void _z_socket_close(_z_sys_net_socket_t *sock) {sock->_client->stop();}
+void _z_socket_close(_z_sys_net_socket_t *sock) {
+#if Z_FEATURE_LINK_TCP == 1
+    sock->_client->stop();
+#endif
+#if Z_FEATURE_LINK_SERIAL == 1
+    sock->_serial->end();
+    delete sock->_serial;
+#endif
+}
 
+#if Z_FEATURE_LINK_TCP == 1
 /*------------------ TCP sockets ------------------*/
 z_result_t _z_create_endpoint_tcp(_z_sys_net_endpoint_t *ep, const char *s_address, const char *s_port) {
     z_result_t ret = _Z_RES_OK;
@@ -167,5 +182,117 @@ size_t _z_read_exact_tcp(const _z_sys_net_socket_t sock, uint8_t *ptr, size_t le
 
     return n;
 }
+#endif
+
+#if Z_FEATURE_LINK_SERIAL == 1
+/*------------------ Serial sockets ------------------*/
+z_result_t _z_open_serial_from_pins(_z_sys_net_socket_t *sock, uint32_t txpin, uint32_t rxpin, uint32_t baudrate) {
+    z_result_t ret = _Z_RES_OK;
+    (void)(sock);
+    (void)(txpin);
+    (void)(rxpin);
+    (void)(baudrate);
+
+    // Not implemented, Arduino Serial internally initializes the Serial ports based on the pins
+    ret = _Z_ERR_GENERIC;
+
+    return ret;
+}
+
+z_result_t _z_open_serial_from_dev(_z_sys_net_socket_t *sock, char *dev, uint32_t baudrate) {
+    if (strcmp(dev, "UART1") == 0) {
+        sock->_serial = &Serial1; // Use Serial1 for UART_1
+    } else if (strcmp(dev, "UART2") == 0) {
+        sock->_serial = &Serial2; // Use Serial2 for UART_2
+    } else if (strcmp(dev, "UART3") == 0) {
+        sock->_serial = &Serial3; // Use Serial3 for UART_3
+    } else {
+        return _Z_ERR_GENERIC;
+    }
+
+    if (sock->_serial != NULL) {
+        sock->_serial->begin(baudrate);
+        sock->_serial->flush();
+    } else {
+        return _Z_ERR_GENERIC;
+    }
+
+    return _z_connect_serial(*sock);
+}
+
+z_result_t _z_listen_serial_from_pins(_z_sys_net_socket_t *sock, uint32_t txpin, uint32_t rxpin, uint32_t baudrate) {
+    z_result_t ret = _Z_RES_OK;
+    (void)(sock);
+    (void)(txpin);
+    (void)(rxpin);
+    (void)(baudrate);
+
+    // Not implemented
+    ret = _Z_ERR_GENERIC;
+
+    return ret;
+}
+
+z_result_t _z_listen_serial_from_dev(_z_sys_net_socket_t *sock, char *dev, uint32_t baudrate) {
+    z_result_t ret = _Z_RES_OK;
+    (void)(sock);
+    (void)(dev);
+    (void)(baudrate);
+
+    // Not implemented
+    ret = _Z_ERR_GENERIC;
+
+    return ret;
+}
+
+void _z_close_serial(_z_sys_net_socket_t *sock) {
+    sock->_serial->end();
+    delete sock->_serial;
+}
+
+size_t _z_read_serial_internal(const _z_sys_net_socket_t sock, uint8_t *header, uint8_t *ptr, size_t len) {
+    uint8_t *raw_buf = (uint8_t *)z_malloc(_Z_SERIAL_MAX_COBS_BUF_SIZE);
+    size_t rb = 0;
+    for (size_t i = 0; i < _Z_SERIAL_MAX_COBS_BUF_SIZE; i++) {
+        while (sock._serial->available() < 1) {
+            z_sleep_ms(1);  // FIXME: Yield by sleeping.
+        }
+        raw_buf[i] = sock._serial->read();
+        rb = rb + (size_t)1;
+        if (raw_buf[i] == (uint8_t)0x00) {
+            break;
+        }
+    }
+
+    uint8_t *tmp_buf = (uint8_t *)z_malloc(_Z_SERIAL_MFS_SIZE);
+    size_t ret = _z_serial_msg_deserialize(raw_buf, rb, ptr, len, header, tmp_buf, _Z_SERIAL_MFS_SIZE);
+
+    z_free(raw_buf);
+    z_free(tmp_buf);
+
+    return ret;
+}
+
+size_t _z_send_serial_internal(const _z_sys_net_socket_t sock, uint8_t header, const uint8_t *ptr, size_t len) {
+    uint8_t *tmp_buf = (uint8_t *)z_malloc(_Z_SERIAL_MFS_SIZE);
+    uint8_t *raw_buf = (uint8_t *)z_malloc(_Z_SERIAL_MAX_COBS_BUF_SIZE);
+    size_t ret =
+        _z_serial_msg_serialize(raw_buf, _Z_SERIAL_MAX_COBS_BUF_SIZE, ptr, len, header, tmp_buf, _Z_SERIAL_MFS_SIZE);
+
+    if (ret == SIZE_MAX) {
+        return ret;
+    }
+
+    size_t wb = sock._serial->write(raw_buf, ret);
+    if (wb != (size_t)ret) {
+        ret = SIZE_MAX;
+    }
+
+    z_free(raw_buf);
+    z_free(tmp_buf);
+
+    return len;
+}
+#endif
 
 }  // extern "C"
